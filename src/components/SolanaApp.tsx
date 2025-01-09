@@ -6,7 +6,7 @@ import {
   Transaction,
 } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,16 @@ import {
 } from '@tabler/icons-react';
 
 export default function SolanaApp() {
-  const { publicKey, signMessage, sendTransaction } = useWallet();
+  const {
+    wallet,
+    publicKey,
+    signMessage,
+    sendTransaction,
+    disconnect,
+    connected,
+    connect,
+    connecting,
+  } = useWallet();
   const { connection } = useConnection();
   const [balance, setBalance] = useState<number | null>(null);
   const [recipient, setRecipient] = useState('');
@@ -30,6 +39,21 @@ export default function SolanaApp() {
   const [message, setMessage] = useState('');
   const [signature, setSignature] = useState<Uint8Array | null>(null);
   const [loading, setLoading] = useState(false);
+  const { setVisible } = useWalletModal();
+
+  const handleClick = async () => {
+    if (connected) {
+      // Disconnect if already connected
+      await disconnect();
+    } else {
+      // Connect to the wallet
+      try {
+        setVisible(true);
+      } catch (error) {
+        console.error('Wallet connection failed', error);
+      }
+    }
+  };
 
   useEffect(() => {
     if (publicKey) {
@@ -154,41 +178,112 @@ export default function SolanaApp() {
     setLoading(false);
   };
 
+  useEffect(() => {
+    const connectWallet = async () => {
+      if (wallet && !connected) {
+        try {
+          await connect();
+          console.log(`Connected to wallet: ${wallet.adapter.name}`);
+        } catch (error) {
+          console.error('Wallet connection failed', error);
+        }
+      }
+    };
+
+    connectWallet();
+  }, [wallet, connected, connect]);
+
+  const BottomGradient = () => {
+    return (
+      <>
+        <span className="group-hover/btn:opacity-100 block transition duration-500 opacity-0 absolute h-px w-full -bottom-px inset-x-0 bg-gradient-to-r from-transparent via-cyan-500 to-transparent" />
+        <span className="group-hover/btn:opacity-100 blur-sm block transition duration-500 opacity-0 absolute h-px w-1/2 mx-auto -bottom-px inset-x-10 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
+      </>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen text-white flex flex-col items-center justify-center p-4 z-10">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-lg"
       >
         <h1 className="text-4xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
           Solana Network | SolNet
         </h1>
-        <div className="bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-700">
+        <div>
           <div className="flex justify-center">
-            <WalletMultiButton className="!bg-blue-600 hover:!bg-blue-700 !text-white font-bold py-2 px-4 rounded" />
+            <button
+              className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6  text-white inline-block"
+              onClick={handleClick}
+              disabled={connecting}
+            >
+              <span className="absolute inset-0 overflow-hidden rounded-full">
+                <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+              </span>
+              <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-2 px-4 ring-1 ring-white/10 ">
+                <span>
+                  {connected
+                    ? 'Disconnect Wallet'
+                    : connecting
+                    ? 'Connecting...'
+                    : 'Connect Wallet'}
+                </span>
+                {!connected && (
+                  <svg
+                    fill="none"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    width="16"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M10.75 8.75L14.25 12L10.75 15.25"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                )}
+              </div>
+              <span className="absolute -bottom-0 left-[1.125rem] h-3 w-[calc(100%-2.25rem)] bg-gradient-to-r from-emerald-400/0 via-emerald-400/90 to-emerald-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+            </button>
           </div>
           {publicKey && (
             <div className="space-y-6 mt-6">
-              <div className="flex items-center justify-between bg-gray-700 p-3 rounded-lg">
-                <span className="text-gray-300">Balance:</span>
-                <span className="font-bold text-blue-400">
-                  {balance !== null
-                    ? `${balance.toFixed(4)} SOL`
-                    : 'Loading...'}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fetchBalance(true)}
-                  disabled={loading}
-                  className="text-gray-300 hover:text-white"
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
-                  />
-                </Button>
+              <div className="flex bg-gray-700 p-3 rounded-lg">
+                <div>
+                  <div>
+                    <span className="text-gray-300">Connected:</span>
+                    <span className="font-bold text-sm text-blue-400">
+                      {balance !== null
+                        ? `${wallet?.adapter.publicKey?.toBase58()}`
+                        : 'Loading...'}
+                    </span>
+                  </div>
+                  <div className="flex justify-start items-center gap-6">
+                    <span className="text-gray-300">Balance:</span>
+                    <span className="font-semibold text-sm text-blue-400">
+                      {balance !== null
+                        ? `${balance.toFixed(4)} SOL`
+                        : 'Loading...'}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => fetchBalance(true)}
+                        disabled={loading}
+                        className="text-gray-300 hover:text-white"
+                      >
+                        <RefreshCw
+                          className={` ${loading ? 'animate-spin' : ''}`}
+                        />
+                      </Button>
+                    </span>
+                  </div>
+                </div>
               </div>
               <div className="space-y-4">
                 <div>
@@ -202,10 +297,10 @@ export default function SolanaApp() {
                       type="number"
                       value={airdropAmount}
                       onChange={e => setAirdropAmount(e.target.value)}
-                      className="bg-gray-700 border-gray-600 text-white rounded"
+                      className="bg-gray-800 text-white rounded flex-1"
                     />
                     <Button
-                      className="w-full bg-purple-600 hover:bg-purple-700"
+                      className="w-full flex-1 relative group/btn bg-zinc-800 text-white rounded h-11 font-medium shadow-[0px_1px_0px_0px_var(--zinc-800)_inset,0px_-1px_0px_0px_var(--zinc-800)_inset]"
                       onClick={handleAirdrop}
                       disabled={loading}
                     >
@@ -215,6 +310,7 @@ export default function SolanaApp() {
                         <Droplet className="mr-2 h-4 w-4" />
                       )}
                       Airdrop SOL
+                      <BottomGradient />
                     </Button>
                   </div>
                 </div>
@@ -227,7 +323,7 @@ export default function SolanaApp() {
                     placeholder="Enter recipient's address"
                     value={recipient}
                     onChange={e => setRecipient(e.target.value)}
-                    className="bg-gray-700 border-gray-600 text-white rounded"
+                    className="bg-gray-800 text-white rounded"
                   />
                 </div>
                 <div>
@@ -241,10 +337,10 @@ export default function SolanaApp() {
                       type="number"
                       value={amount}
                       onChange={e => setAmount(e.target.value)}
-                      className="bg-gray-700 border-gray-600 text-white rounded"
+                      className="bg-gray-800 text-white rounded flex-1"
                     />
                     <Button
-                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      className="w-full flex-1 relative group/btn bg-zinc-800 text-white rounded h-11 font-medium shadow-[0px_1px_0px_0px_var(--zinc-800)_inset,0px_-1px_0px_0px_var(--zinc-800)_inset]"
                       onClick={handleTransfer}
                       disabled={loading}
                     >
@@ -254,6 +350,7 @@ export default function SolanaApp() {
                         <Send className="mr-2 h-4 w-4" />
                       )}
                       Transfer SOL
+                      <BottomGradient />
                     </Button>
                   </div>
                 </div>
@@ -266,11 +363,11 @@ export default function SolanaApp() {
                     placeholder="Enter a message to sign"
                     value={message}
                     onChange={e => setMessage(e.target.value)}
-                    className="bg-gray-700 border-gray-600 text-white rounded"
+                    className="bg-gray-800 text-white rounded"
                   />
                 </div>
                 <Button
-                  className="w-full bg-green-600 hover:bg-green-700"
+                  className="w-full relative group/btn bg-zinc-800 text-white rounded h-11 font-medium shadow-[0px_1px_0px_0px_var(--zinc-800)_inset,0px_-1px_0px_0px_var(--zinc-800)_inset]"
                   onClick={handleSignMessage}
                   disabled={loading}
                 >

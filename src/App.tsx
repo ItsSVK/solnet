@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import SolanaApp from './components/SolanaApp';
 import '@solana/wallet-adapter-react-ui/styles.css';
 import { Toaster } from 'sonner';
+import { BackgroundBeamsWithCollision } from '@/components/ui/background-beams-with-collision';
 
 function App() {
   const network = WalletAdapterNetwork.Devnet;
@@ -20,7 +21,10 @@ function App() {
       <ConnectionProvider endpoint={endpoint}>
         <WalletProvider wallets={[]} autoConnect>
           <WalletModalProvider>
-            <SolanaApp />
+            {/* <SolanaApp /> */}
+            <BackgroundBeamsWithCollision>
+              <SolanaApp />
+            </BackgroundBeamsWithCollision>
           </WalletModalProvider>
         </WalletProvider>
       </ConnectionProvider>
